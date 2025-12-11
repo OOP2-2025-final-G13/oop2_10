@@ -17,8 +17,9 @@ def add():
     if request.method == 'POST':
         user_id = request.form['user_id']
         product_id = request.form['product_id']
+        quantity = request.form['quantity']
         order_date = datetime.now()
-        Order.create(user=user_id, product=product_id, order_date=order_date)
+        Order.create(user=user_id, product=product_id, quantity=quantity, order_date=order_date)
         return redirect(url_for('order.list'))
     
     users = User.select()
@@ -35,6 +36,7 @@ def edit(order_id):
     if request.method == 'POST':
         order.user = request.form['user_id']
         order.product = request.form['product_id']
+        order.quantity = request.form['quantity']
         order.save()
         return redirect(url_for('order.list'))
 
