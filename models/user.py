@@ -6,9 +6,6 @@ class User(Model):
     age = IntegerField()
     address = CharField()
     class Meta:
-<<<<<<< Updated upstream
-        database = db
-=======
         database = db
 
     @staticmethod
@@ -38,4 +35,3 @@ class User(Model):
             {'label': k, 'value': v}
             for k, v in distribution.items()
         ]
->>>>>>> Stashed changes
