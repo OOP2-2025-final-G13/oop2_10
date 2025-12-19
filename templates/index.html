@@ -21,7 +21,7 @@
     </ul>
 
     <!-- 自動で JSON を読み込んで表示（選択フォームは不要） -->
-    <h2>販売データ（order.json）の円グラフ：商品ごとの販売個数</h2>
+    <h2>販売データ一覧</h2>
     <div style="display:flex; gap:40px; align-items:flex-start;">
       <div>
         <h3>order: 商品別売上個数（円グラフ）</h3>
@@ -37,8 +37,8 @@
     </div>
 
     <script>
-      // data/order.json と data/report.json をフェッチ（自動読み込み）
-      async function loadJson(path) {
+      // API からデータを取得してグラフを描画
+      async function fetchJson(path) {
         try {
           const res = await fetch(path);
           if (!res.ok) return null;
@@ -48,43 +48,29 @@
         }
       }
 
-      // 注文データを受け取り、product_id ごとの個数を集計
-      function aggregateOrderCounts(orderArray) {
-        const counts = {};
-        for (const o of (orderArray || [])) {
-          // product_id がオブジェクトの key か、product プロパティかを想定
-          const pid = o.product_id ?? o.product ?? null;
-          if (pid == null) continue;
-          counts[pid] = (counts[pid] || 0) + 1;
-        }
-        return counts;
-      }
-
       (async function() {
-        const order = await loadJson('/data/order.json');
-        const report = await loadJson('/data/report.json');
-
-        // order -> product_id ごとの個数を集計して円グラフ
-        const counts = aggregateOrderCounts(order);
-        const labels = Object.keys(counts);
-        const dataValues = Object.values(counts);
+        // /api/order/product_counts -> [{product_id, product_name, count}, ...]
+        const orderCounts = await fetchJson('/api/order/product_counts') || [];
+        const orderLabels = orderCounts.map(r => r.product_name || String(r.product_id));
+        const orderValues = orderCounts.map(r => r.count || 0);
 
         const pieCtx = document.getElementById('orderPie').getContext('2d');
         new Chart(pieCtx, {
           type: 'pie',
           data: {
-            labels: labels,
+            labels: orderLabels,
             datasets: [{
-              data: dataValues,
-              backgroundColor: labels.map((_, i) => `hsl(${(i*60)%360} 70% 60%)`)
+              data: orderValues,
+              backgroundColor: orderLabels.map((_, i) => `hsl(${(i*60)%360} 70% 60%)`)
             }]
           },
           options: { responsive: true }
         });
 
-        // report は月別データ（[{year,month,sales},...]) を想定して折れ線で表示
-        const monthly = report || [];
-        const rlabels = monthly.map(d => `${d.year}年${d.month}月`);
+        // /api/report/monthly_json -> { title, x_axis_label, y_axis_label, data: [{month, sales}, ...] }
+        const reportData = await fetchJson('/api/report/monthly_json');
+        const monthly = (reportData && reportData.data) ? reportData.data : [];
+        const rlabels = monthly.map(d => d.month);
         const rvalues = monthly.map(d => d.sales || 0);
 
         const rctx = document.getElementById('reportChart').getContext('2d');
@@ -93,7 +79,7 @@
           data: {
             labels: rlabels,
             datasets: [{
-              label: '売上',
+              label: reportData ? reportData.title : '売上',
               data: rvalues,
               borderColor: 'rgba(75, 192, 192, 1)',
               backgroundColor: 'rgba(75, 192, 192, 0.1)',
@@ -103,6 +89,39 @@
           },
           options: { responsive: true, maintainAspectRatio: false }
         });
+
+        // /api/user/age_distribution -> [{label, value}, ...] を棒グラフで表示
+        const ageDist = await fetchJson('/api/user/age_distribution') || [];
+        if (ageDist.length > 0) {
+          const labels = ageDist.map(d => d.label);
+          const vals = ageDist.map(d => d.value);
+          // 挿入する場所を作る（画面下に）
+          const container = document.createElement('div');
+          container.style.width = '640px';
+          container.style.height = '300px';
+          container.style.marginTop = '20px';
+          const h3 = document.createElement('h2');
+          h3.textContent = '年齢分布';
+          document.body.appendChild(h3);
+          const c = document.createElement('canvas');
+          c.id = 'ageChart';
+          container.appendChild(c);
+          document.body.appendChild(container);
+
+          const actx = c.getContext('2d');
+          new Chart(actx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: '人数',
+                data: vals,
+                backgroundColor: 'rgba(153, 102, 255, 0.6)'
+              }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+          });
+        }
       })();
     </script>
 </body>
