@@ -9,8 +9,9 @@ class Report:
     def get_total_sales():
         """全期間の総売上を取得"""
         try:
+            # price * quantity の合計を計算する
             query = (Order
-                    .select(fn.SUM(Product.price).alias('total'))
+                    .select(fn.SUM(Product.price * Order.quantity).alias('total'))
                     .join(Product)
                     .scalar())
             return float(query) if query else 0
@@ -32,8 +33,9 @@ class Report:
             end_date = datetime(year, month + 1, 1)
         
         try:
+            # 指定期間の売上は product.price * order.quantity の合計
             query = (Order
-                    .select(fn.SUM(Product.price).alias('monthly_total'))
+                    .select(fn.SUM(Product.price * Order.quantity).alias('monthly_total'))
                     .join(Product)
                     .where(Order.order_date.between(start_date, end_date))
                     .scalar())
@@ -63,3 +65,28 @@ class Report:
             })
         
         return monthly_data[::-1]  # 古い順に並び替え
+    
+    @staticmethod
+    def get_monthly_sales_json():
+        """月別売上データを API 用の JSON 形式で返す。
+        返却形式:
+        {
+            'title': '月別売上',
+            'x_axis_label': '年月',
+            'y_axis_label': '売上（円）',
+            'data': [ {'month': '2025-11', 'sales': 12345}, ... ]
+        }
+        """
+        monthly = Report.get_monthly_sales_data()
+        data = []
+        for d in monthly:
+            data.append({
+                'month': f"{d['year']}-{d['month']:02d}",
+                'sales': d['sales']
+            })
+        return {
+            'title': '月別売上',
+            'x_axis_label': '年月',
+            'y_axis_label': '売上（円）',
+            'data': data
+        }

@@ -16,8 +16,10 @@ def add():
     if request.method == 'POST':
         user_id = request.form['user_id']
         product_id = request.form['product_id']
+        # 数量を取得（入力がなければ1）
+        quantity = int(request.form.get('quantity', 1) or 1)
         order_date = datetime.now()
-        Order.create(user=user_id, product=product_id, order_date=order_date)
+        Order.create(user=user_id, product=product_id, order_date=order_date, quantity=quantity)
         return redirect(url_for('order.list'))
     
     users = User.select()
@@ -34,6 +36,7 @@ def edit(order_id):
     if request.method == 'POST':
         order.user = request.form['user_id']
         order.product = request.form['product_id']
+        order.quantity = int(request.form.get('quantity', order.quantity) or order.quantity)
         order.save()
         return redirect(url_for('order.list'))
 

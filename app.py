@@ -1,10 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, send_from_directory
 import os
-from models import initialize_database
-from models.order import Order
-from models.product import Product
-from models.report import Report
-from models.user import User
+from models import initialize_database, Order, Product, Report, User
 from peewee import fn
 from flask import jsonify
 from routes import blueprints
@@ -52,13 +48,12 @@ def serve_data(filename):
 
 @app.route('/api/order/product_counts')
 def api_order_product_counts():
-    """商品ごとの販売個数を返す JSON。
+    """商品ごとの販売数量合計を返す JSON。
     形式: [{"product_id": 1, "product_name": "xxx", "count": 10}, ...]
     """
     try:
-        # Use Product as base to ensure product fields are accessible
         q = (Product
-             .select(Product.id.alias('product_id'), Product.name.alias('product_name'), fn.COUNT(Order.id).alias('count'))
+             .select(Product.id.alias('product_id'), Product.name.alias('product_name'), fn.SUM(Order.quantity).alias('count'))
              .join(Order, on=(Order.product == Product.id))
              .group_by(Product.id))
         result = []
@@ -66,7 +61,7 @@ def api_order_product_counts():
             result.append({
                 'product_id': row.get('product_id'),
                 'product_name': row.get('product_name'),
-                'count': row.get('count') or 0
+                'count': int(row.get('count') or 0)
             })
         return jsonify(result)
     except Exception as e:
